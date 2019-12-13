@@ -1,5 +1,6 @@
 `define DEBUG
 `define IFELSE(IFCLAUSE, IFTRUE, IFFALSE) ((IFCLAUSE) ? (IFTRUE) : (IFFALSE))
+`define MACRO(NAME, CLAUSE) `ifdef NAME CLAUSE `endif
 
 module SingleCycleMIPS( 
     clk,
@@ -36,12 +37,12 @@ module SingleCycleMIPS(
     wire [15:0] I_addr = IR[15:0];
     wire [25:0] J_addr = IR[25:0];
 
-    reg [5:0] prev_op_code;
+    // reg [5:0] prev_op_code;
     reg [4:0] prev_Rt;
     reg [4:0] prev_Rd;
 
     always @(posedge clk) begin
-        prev_op_code <= op_code;
+        // prev_op_code <= op_code;
         prev_Rt <= Rt;
         prev_Rd <= Rd;
     end
@@ -56,11 +57,17 @@ module SingleCycleMIPS(
 
     reg [31:0] data_Rs;
     reg [31:0] data_Rt;
-    reg [31:0] enable_Rd;
-    reg [31:0] enable_Rt;
     reg [31:0] to_Rd;
     reg [31:0] to_Rt;
+    reg [31:0] prev_to_Rd;
+    reg [31:0] prev_to_Rt;
     reg [31:0] candidate_add;
+    reg [31:0] R31;
+
+    always @* begin
+        if (op_code == 6'h00) candidate_add = data_Rt; // R type
+        else candidate_add = ext_I_addr; // not R type
+    end
 
     wire [31:0] sll_out = data_Rt << shamt;
     wire [31:0] srl_out = data_Rt >> shamt;
@@ -70,16 +77,48 @@ module SingleCycleMIPS(
     wire [31:0] or_out = data_Rs | data_Rt;
     wire [31:0] slt_out = {{31{1'b0}}, sub_out[31]};
 
-    // forward
     always @* begin
-        if (Rs == prev_Rd) data_Rs = registers[prev_Rd];
-        else if (Rs == prev_Rt) data_Rs = registers[prev_Rt];
+        if (op_code == 6'h00 && funct == 6'h08) begin
+            net_PC = data_Rs;
+        end
+        else if (op_code == 6'h02 || op_code == 6'h03) begin
+            net_PC = jump_addr;
+        end
+        else if (op_code == 6'h04 && sub_out == 32'd0) begin
+            net_PC = branch_addr;
+        end
+        else if (op_code == 6'h05 && sub_out != 32'd0) begin
+            net_PC = branch_addr;
+        end
+        else begin
+            net_PC = PC_4;
+        end
+    end
+
+    always @* begin
+        if (op_code == 6'h03) begin
+            R31 = PC_8;
+        end
+        else begin
+            R31 = registers[31];
+        end
+    end
+
+    always @(posedge clk) begin
+        registers[31] <= R31;
+    end
+
+    // forwarding
+    always @* begin
+        if (Rs == prev_Rd) data_Rs = prev_to_Rd;
+        else if (Rs == prev_Rt) data_Rs = prev_to_Rt;
         else data_Rs = registers[Rs];
     end
 
     always @* begin
-        if (op_code != 6'h08) candidate_add = ext_I_addr; // not R type
-        else candidate_add = data_Rt; // R type
+        if (Rt == prev_Rd) data_Rt = prev_to_Rd;
+        else if (Rt == prev_Rt) data_Rt = prev_to_Rt;
+        else data_Rt = registers[Rs];
     end
 
     always @* begin
@@ -98,13 +137,52 @@ module SingleCycleMIPS(
     end
 
     always @* begin
-        if (op_code == 6'h00) to_Rt = add_out;
+        if (op_code == 6'h08) to_Rt = add_out;
+        else if (op_code == 6'h23) to_Rt = ReadDataMem;
         else to_Rt = registers[Rt];
     end
 
     always @(posedge clk) begin
-        registers[prev_Rd] <= to_Rd;
-        registers[prev_Rt] <= to_Rt;
+        prev_to_Rd <= to_Rd;
+        prev_to_Rt <= to_Rt;
     end
 
+    always @* begin
+        registers[prev_Rd] = prev_to_Rd;
+        registers[prev_Rt] = prev_to_Rt;
+    end
+
+    reg reg_OEN;
+    reg reg_WEN;
+
+    assign IR_addr = PC;
+    assign A = add_out;
+    assign Data2Mem = data_Rt;
+    assign CEN = OEN && WEN;
+    assign OEN = reg_OEN;
+    assign WEN = reg_WEN;
+
+    always @* begin
+        if (op_code == 6'h23) reg_OEN = 0;
+        else reg_OEN = 1;
+    end
+
+    always @* begin
+        if (op_code == 6'h2b) reg_WEN = 0;
+        else reg_WEN = 1;
+    end
+
+    integer tempvar;
+
+    always @(posedge clk) begin
+        if (rst_n) begin
+            PC <= net_PC;
+        end
+        else begin
+            PC <= 0;
+            for (tempvar = 0; tempvar < 32; tempvar = tempvar + 1) begin
+                registers[tempvar] <= 32'd0;
+            end
+        end
+    end
 endmodule

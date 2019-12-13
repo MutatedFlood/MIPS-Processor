@@ -1,13 +1,13 @@
 `define DEBUG
 `define MEMORY
-`define FINISH_TIME 10000
-// `define IVERILOG
+`define FINISH_TIME 1000
+`define IVERILOG
 
 `ifdef IVERILOG
 `define Baseline
+`include "./SingleCycleMIPS.v"
 `endif
 
-`include "./SingleCycleMIPS.v"
 
 `timescale 1 ns/10 ps
 `define CYCLE 10.0
@@ -175,7 +175,7 @@ module SingleCycle_tb;
             if (temp % 8 == 0) begin
                 $display;
             end
-            $write("%d ", scmips.Registers[temp]);
+            $write("%d ", scmips.registers[temp]);
         end
         $display; $display;
     end
@@ -194,11 +194,11 @@ module SingleCycle_tb;
 	end
 
 // Dump waveform file
-// 	initial begin
-// 		$fsdbDumpfile("MIPS.fsdb");
-// 		$fsdbDumpvars(0,SingleCycle_tb,"+mda"); //This command is for dumping 2D array
-// 		$fsdbDumpvars;								
-// 	end
+	initial begin
+		$dumpfile("MIPS.vcd");
+		// $dumpvars(0,SingleCycle_tb,"+mda"); //This command is for dumping 2D array
+		$dumpvars;								
+	end
 	
 //initial rst_n, value
 	initial begin
