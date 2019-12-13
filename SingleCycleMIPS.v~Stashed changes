@@ -1,0 +1,220 @@
+`define DEBUG
+`define LW_SW_SEPARATED // no consecutive lw sw
+
+module SingleCycleMIPS( 
+    clk,
+    rst_n,
+    IR_addr,
+    IR,
+    ReadDataMem,
+    CEN,
+    WEN,
+    A,
+    Data2Mem,
+    OEN
+);
+    input clk, rst_n;
+    input  [31:0] IR;
+    output reg [31:0] IR_addr;
+
+    input  [31:0] ReadDataMem;  
+    output reg CEN;  
+    output reg WEN;  
+    output reg [6:0] A;  
+    output reg [31:0] Data2Mem;  
+    output reg OEN;
+
+    integer tempvar;
+
+    reg [31:0] PC;
+    reg [31:0] Registers [0:31];
+
+    reg [31:0] PC_4;
+    reg [31:0] next_PC;
+
+    reg [5:0] OpCode; // all
+    reg [4:0] Rs; // R, I
+    reg [4:0] Rt; // R, I
+    reg [4:0] Rd; // R
+    reg [4:0] shamt; // R
+    reg [5:0] funct; // R
+    reg [15:0] IAddr; // I
+    reg [25:0] JAddr; // J
+
+    reg [31:0] ExtIAddr; // I
+    reg [31:0] ShiftExtIAddr; // I
+    reg [31:0] ShiftJAddr; // J
+
+    reg [31:0] sllOut;
+    reg [31:0] srlOut;
+    reg [31:0] addOut;
+    reg [31:0] subOut;
+    reg [31:0] andOut;
+    reg [31:0] orOut;
+    reg [31:0] sltOut;
+
+    reg AvailablePipeLine;
+    reg Available;
+    reg [4:0] WriteTo;
+
+    reg [31:0] RsData;
+    reg [31:0] RtData;
+
+    reg [31:0] RType;
+    reg [31:0] IType;
+    reg [31:0] PCAddImm;
+
+    always @* begin
+        OpCode = IR[31:26];
+        Rs = IR[25:21];
+        Rt = IR[20:16];
+        Rd = IR[15:11];
+        shamt = IR[10:6];
+        funct = IR[5:0];
+        IAddr = IR[15:0];
+        JAddr = IR[25:0];
+    end
+
+    always @* begin
+        ExtIAddr = {{16{IAddr[15]}}, IAddr};
+        ShiftExtIAddr = {ExtIAddr[29:0], 2'b0};
+        ShiftJAddr = {PC[31:28], JAddr, 2'b0};
+    end
+
+    always @* begin
+        RsData = Registers[Rs];
+        RtData = Registers[Rt];
+    end
+
+    always @* begin
+        OEN = 1;
+        WEN = 1;
+        AvailablePipeLine = 0;
+        if (OpCode == 6'h23) begin
+            AvailablePipeLine = 1;
+            OEN = 0;
+        end
+        else if (OpCode == 6'h2b) begin
+            WEN = 0;
+        end
+        CEN = OEN & WEN;
+        // case (OpCode)
+        //     6'h23: begin
+        //         AvailablePipeLine = 1;
+        //         OEN = 0;
+        //     end
+        //     6'h2b: begin
+        //         WEN = 0;
+        //     end
+        //     default: ;
+        // endcase
+    end
+
+    always @* begin
+        A = RsData[6:0] + ExtIAddr[6:0];
+
+`ifdef LW_SW_SEPARATED
+        Data2Mem = Rt;
+`else
+        if (Available) begin
+            Data2Mem = ReadDataMem;
+        end
+        else begin
+            Data2Mem = Rt;
+        end
+`endif
+    end
+
+    always @* begin
+        sllOut = RtData << shamt;
+        srlOut = RtData >> shamt;
+        addOut = RsData + RtData;
+        subOut = RsData - RtData;
+        andOut = RsData & RtData;
+        orOut = RsData | RtData;
+        sltOut = subOut[31];
+    end
+
+    always @* begin
+        case (funct)
+            6'h00: RType = sllOut;
+            6'h02: RType = srlOut;
+            6'h20: RType = addOut;
+            6'h22: RType = subOut;
+            6'h24: RType = andOut;
+            6'h25: RType = orOut;
+            6'h2a: RType = sltOut;
+            default: RType = RsData;
+        endcase
+        IType = RsData + ExtIAddr;
+    end
+
+    always @* begin
+        IR_addr = PC;
+        PC_4 = {PC[31:2] + 30'b1, PC[1:0]};
+        PCAddImm = PC_4 + ShiftExtIAddr;
+
+        case (OpCode)
+            6'h04: begin
+                if (RsData == RtData) next_PC = PCAddImm;
+                else next_PC = PC_4;
+            end
+            6'h05: begin
+                if (RsData == RtData) next_PC = PC_4;
+                else next_PC = PCAddImm;
+            end
+            6'h02,
+            6'h03: next_PC = ShiftJAddr;
+            default: begin
+                // for OpCode = 0
+                if (funct == 6'h08) next_PC = RsData;
+                else next_PC = PC_4;
+            end
+        endcase
+    end
+
+
+    always @(posedge clk) begin
+        if (rst_n) begin
+            PC <= next_PC;
+
+            if (OpCode == 6'h00) begin
+                if (funct == 6'h08) Registers[Rd] <= Registers[Rd];
+                else Registers[Rd] <= RType;
+            end
+            else begin
+                Registers[Rd] <= Registers[Rd];
+            end
+
+            if (Available) begin
+                Registers[WriteTo] <= ReadDataMem;
+            end
+            else begin
+                Registers[WriteTo] <= Registers[WriteTo];
+            end
+
+            if (OpCode == 6'h08) begin
+                Registers[Rt] <= IType;
+            end
+            else begin
+                Registers[Rt] <= Registers[Rt];
+            end
+
+            if (OpCode == 6'h03) begin
+                Registers[31] <= {PC[31:3] + 29'b1, PC[2:0]};
+            end
+            else begin
+                Registers[31] <= Registers[31];
+            end
+
+            WriteTo <= Rt;
+            Available <= AvailablePipeLine;
+        end
+        else begin
+            PC <= 0;
+            for (tempvar = 0; tempvar < 32; tempvar = tempvar + 1) begin
+                Registers[tempvar] <= 0;
+            end
+        end
+    end
+endmodule
