@@ -5,7 +5,6 @@
 
 `ifdef IVERILOG
 `define Baseline
-`include "./SingleCycleMIPS.v"
 `endif
 
 `include "./SingleCycleMIPS.v"

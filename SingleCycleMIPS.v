@@ -1,5 +1,4 @@
 `define DEBUG
-`define LW_SW_SEPARATED // no consecutive lw sw
 `define IFELSE(IFCLAUSE, IFTRUE, IFFALSE) ((IFCLAUSE) ? (IFTRUE) : (IFFALSE))
 
 module SingleCycleMIPS( 
@@ -37,72 +36,75 @@ module SingleCycleMIPS(
     wire [15:0] I_addr = IR[15:0];
     wire [25:0] J_addr = IR[25:0];
 
-    wire [31:0] ext_I_addr = {{16{I_addr[15]}}, I_addr};
-
-    wire jump = (op_code == 6'h02 || op_code == 6'h03);
-    wire jump_reg = (op_code == 6'h00 && funct == 6'h08);
-    wire branch_eq = (op_code == 6'h04);
-    wire branch_ne = (op_code == 6'h05);
-
-    wire [31:0] PC_4 = {PC[29:0], 2'b0};
-    wire [31:0] jump_to = {PC[31:28], J_addr, 2'b0};
-    wire [31:0] branch_to = PC_4 + {ext_I_addr[29:0], 2'b0};
-    reg [31:0] PC_net;
-
-    wire [31:0] Rs_dat = registers[Rs];
-    wire [31:0] Rt_dat = registers[Rt];
-    reg [31:0] Rd_dat;
-
-    reg [31:0] add_candidate;
-
-    wire [31:0] sll_out = Rt_dat << shamt;
-    wire [31:0] srl_out = Rt_dat >> shamt;
-    wire [31:0] add_out = Rs_dat + add_candidate;
-    wire [31:0] sub_out = Rs_dat - Rt_dat;
-    wire [31:0] and_out = Rs_dat & Rt_dat;
-    wire [31:0] or_out = Rs_dat | Rt_dat;
-    wire slt_out = sub_out[31];
-
-    always @* begin
-        if (op_code == 6'h00) add_candidate = Rt_dat;
-        else add_candidate = ext_I_addr;
-    end
-
-    integer tempvar;
-
-    always @* begin
-        if (jump) begin
-            PC_net = jump_to;
-        end
-        else if (jump_reg) begin
-            PC_net = Rs_dat;
-        end
-        else if (branch_eq) begin
-            if (~|sub_out) PC_net = branch_to;
-            else PC_net = PC_4;
-        end
-        else if (branch_ne) begin
-            if (~|sub_out) PC_net = PC_4;
-            else PC_net = branch_to;
-        end
-        else begin
-            PC_net = PC_4;
-        end
-    end
-
-    assign IR_addr = PC;
-    assign CEN = OEN & WEN;
+    reg [5:0] prev_op_code;
+    reg [4:0] prev_Rt;
+    reg [4:0] prev_Rd;
 
     always @(posedge clk) begin
-        if (rst_n) begin
-            PC <= PC_net;
+        prev_op_code <= op_code;
+        prev_Rt <= Rt;
+        prev_Rd <= Rd;
+    end
+
+    wire [31:0] PC_4 = PC + 4;
+    wire [31:0] PC_8 = PC + 8;
+    reg [31:0] net_PC;
+    wire [31:0] ext_I_addr = {{16{I_addr[15]}}, I_addr};
+    wire [31:0] shift_ext_I_addr = {ext_I_addr[29:0], 2'd0};
+    wire [31:0] jump_addr = {PC_4[31:28], J_addr, 2'd0};
+    wire [31:0] branch_addr = PC_4 + shift_ext_I_addr;
+
+    reg [31:0] data_Rs;
+    reg [31:0] data_Rt;
+    reg [31:0] enable_Rd;
+    reg [31:0] enable_Rt;
+    reg [31:0] to_Rd;
+    reg [31:0] to_Rt;
+    reg [31:0] candidate_add;
+
+    wire [31:0] sll_out = data_Rt << shamt;
+    wire [31:0] srl_out = data_Rt >> shamt;
+    wire [31:0] add_out = data_Rs + candidate_add;
+    wire [31:0] sub_out = data_Rs - data_Rt;
+    wire [31:0] and_out = data_Rs & data_Rt;
+    wire [31:0] or_out = data_Rs | data_Rt;
+    wire [31:0] slt_out = {{31{1'b0}}, sub_out[31]};
+
+    // forward
+    always @* begin
+        if (Rs == prev_Rd) data_Rs = registers[prev_Rd];
+        else if (Rs == prev_Rt) data_Rs = registers[prev_Rt];
+        else data_Rs = registers[Rs];
+    end
+
+    always @* begin
+        if (op_code != 6'h08) candidate_add = ext_I_addr; // not R type
+        else candidate_add = data_Rt; // R type
+    end
+
+    always @* begin
+        to_Rd = registers[Rd];
+        if (op_code == 6'h00) begin
+            case (funct)
+                6'h00: to_Rd = sll_out;
+                6'h02: to_Rd = srl_out;
+                6'h20: to_Rd = add_out;
+                6'h22: to_Rd = sub_out;
+                6'h24: to_Rd = and_out;
+                6'h25: to_Rd = or_out;
+                6'h2a: to_Rd = slt_out;
+            endcase
         end
-        else begin
-            PC <= 0;
-            for (tempvar = 0; tempvar < 32; tempvar = tempvar + 1) begin
-                registers[tempvar] <= 'b0;
-            end
-        end
+    end
+
+    always @* begin
+        if (op_code == 6'h00) to_Rt = add_out;
+        else to_Rt = registers[Rt];
+    end
+
+    always @(posedge clk) begin
+        registers[prev_Rd] <= to_Rd;
+        registers[prev_Rt] <= to_Rt;
     end
 
 endmodule
