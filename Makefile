@@ -4,21 +4,17 @@ ARGS = # external arguments
 
 TIME = time
 VLOG = ncverilog
-IVLOG = iverilog
-VIEW = nWave
 DV = dc_shell -f
 
 CSHRC = cshrc
 TB = tb.v
-ITB = test.v
-IVOUT = test.out
 SCMIPS = SingleCycleMIPS
 TSMC = tsmc13.v
 
 DESIGNWARE = -y /usr/cad/synopsys/synthesis/cur/dw/sim_ver/ \
 +libext+.v +incdir+/usr/cad/synopsys/synthesis/cur/dw/sim_ver/
 
-.PHONY: all source cpu compile csyn fpu single double fsyn iverilog
+.PHONY: all source cpu compile csyn fpu single double fsyn
 
 all: source
 	
@@ -45,8 +41,3 @@ double: $(TB) $(SCMIPS)_FPU.v
 
 fsyn: $(TB) $(SCMIPS)_FPU_syn.v $(TSMC)
 	$(TIME) $(VLOG) $(TB) $(SCMIPS)_FPU_syn.v $(TSMC) +define+FPU+Single+access+r $(ARGS)
-
-iverilog: $(ITB)
-	$(TIME) $(IVLOG) $(TB) -o $(IVOUT)
-	./$(IVOUT)
-	rm $(IVOUT)

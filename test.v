@@ -1,6 +1,6 @@
 `define DEBUG
 `define MEMORY
-`define FINISH_TIME 1000
+`define FINISH_TIME 100000
 `define IVERILOG
 
 `ifdef IVERILOG
@@ -93,6 +93,7 @@ module SingleCycle_tb;
     wire [4:0] shamt; // R
     wire [5:0] funct; // R
     wire [15:0] IAddr; // I
+	wire [31:0] ExtIAddr; // I
     wire [25:0] JAddr; // J
 
     assign OpCode = IR[31:26];
@@ -103,55 +104,58 @@ module SingleCycle_tb;
     assign funct = IR[5:0];
     assign IAddr = IR[15:0];
     assign JAddr = IR[25:0];
+	assign ExtIAddr = {{16{IAddr[15]}}, IAddr};
 
     always @(negedge clk) begin
-        $write("time = %6d, rst_n = %b, PC = %h, Mem = %3b, Read = %8h, Write = %8h || ", $time, rst_n, IR_addr, {CEN, OEN, WEN}, ReadDataMem, Data2Mem);
+		$display("rt = %d->%d, rd = %d->%d", scmips.prev_Rt, scmips.Rt, scmips.prev_Rd, scmips.Rd);
+
+        $write("time = %6d, rst_n = %b, PC = %d/%h, Mem = %3b, Read = %8h, Write = %8h || ", $time, rst_n, IR_addr, IR_addr, {CEN, OEN, WEN}, ReadDataMem, Data2Mem);
         case (OpCode)
-            'h08: begin
-                $display("addi, Rs = %d, Rt = %d, Imm = %d", Rs, Rt, IAddr);
+            6'h08: begin
+                $display("addi, Rs = %d, Rt = %d, Imm = %d/%h", Rs, Rt, ExtIAddr, ExtIAddr);
             end
-            'h23: begin
-                $display("lw, Rs = %d, Rt = %d, Imm = %d", Rs, Rt, IAddr);
+            6'h23: begin
+                $display("lw, Rs = %d, Rt = %d, Imm = %d", Rs, Rt, ExtIAddr);
             end
-            'h2b: begin
-                $display("sw, Rs = %d, Rt = %d, Imm = %d", Rs, Rt, IAddr);
+            6'h2b: begin
+                $display("sw, Rs = %d, Rt = %d, Imm = %d", Rs, Rt, ExtIAddr);
             end
-            'h04: begin
-                $display("beq, Rs = %d, Rt = %d, addr = %h", Rs, Rt, IAddr << 2);
+            6'h04: begin
+                $display("beq, Rs = %d, Rt = %d, +addr = %d/-%d", Rs, Rt, ExtIAddr << 2, -(ExtIAddr << 2));
             end
-            'h05: begin
-                $display("bne, Rs = %d, Rt = %d, addr = %h", Rs, Rt, IAddr << 2);
+            6'h05: begin
+                $display("bne, Rs = %d, Rt = %d, +addr = %d/-%d", Rs, Rt, ExtIAddr << 2, -(ExtIAddr << 2));
             end
-            'h02: begin
-                $display("j, Rs = %d, Rt = %d, addr = %h", Rs, Rt, JAddr << 2);
+            6'h02: begin
+                $display("j, Rs = %d, Rt = %d, addr = %d/%h", Rs, Rt, JAddr << 2, JAddr << 2);
             end
-            'h03: begin
-                $display("jal, Rs = %d, Rt = %d, addr = %h", Rs, Rt, JAddr << 2);
+            6'h03: begin
+                $display("jal, Rs = %d, Rt = %d, addr = %d/%h", Rs, Rt, JAddr << 2, JAddr << 2);
             end
-            'h00: begin
+            6'h00: begin
                 case (funct)
-                    'h00: begin
+                    6'h00: begin
                         $display("sll, Rs = %d, Rt = %d, Rd = %d, shamt = %d", Rs, Rt, Rd, shamt);
                     end
-                    'h02: begin
+                    6'h02: begin
                         $display("srl, Rs = %d, Rt = %d, Rd = %d, shamt = %d", Rs, Rt, Rd, shamt);
                     end
-                    'h20: begin
+                    6'h20: begin
                         $display("add, Rs = %d, Rt = %d, Rd = %d, shamt = %d", Rs, Rt, Rd, shamt);
                     end
-                    'h22: begin
+                    6'h22: begin
                         $display("sub, Rs = %d, Rt = %d, Rd = %d, shamt = %d", Rs, Rt, Rd, shamt);
                     end
-                    'h24: begin
+                    6'h24: begin
                         $display("and, Rs = %d, Rt = %d, Rd = %d, shamt = %d", Rs, Rt, Rd, shamt);
                     end
-                    'h25: begin
+                    6'h25: begin
                         $display("or, Rs = %d, Rt = %d, Rd = %d, shamt = %d", Rs, Rt, Rd, shamt);
                     end
-                    'h2a: begin
-                        $display("slt, Rs = %d, Rt = %d, Rd = %d, shamt = %d", Rs, Rt, Rd, shamt);
+                    6'h2a: begin
+                        $display("slt, Rs = %d, Rt = %d, Rd = %d, shamt = %d, ans = %d", Rs, Rt, Rd, shamt, scmips.registers[Rs] - scmips.registers[Rt]);
                     end
-                    'h08: begin
+                    6'h08: begin
                         $display("jr, Rs = %d, Rt = %d, Rd = %d, shamt = %d", Rs, Rt, Rd, shamt);
                     end
                     default: begin
@@ -170,12 +174,11 @@ module SingleCycle_tb;
 `ifdef MEMORY
     integer temp;
     always @(posedge clk) begin
-        $write("PC = %d", IR_addr);
         for (temp = 0; temp < 32; temp = temp + 1) begin
             if (temp % 8 == 0) begin
                 $display;
             end
-            $write("%d ", scmips.registers[temp]);
+            $write("0x%h ", scmips.registers[temp]);
         end
         $display; $display;
     end
@@ -231,7 +234,7 @@ module SingleCycle_tb;
 `endif
 	
 	always@(*)begin
-		if (ReadDataMem == 32'h7fffffff && IR_addr == 8'd8)begin
+		if (ReadDataMem == 326'h7fffffff && IR_addr == 8'd8)begin
 			if (error==1) 
 				$display("\norder of Single cycle MIPS instructions error!!!\n");
 			`ifdef SDF
