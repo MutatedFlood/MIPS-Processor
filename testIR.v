@@ -99,26 +99,24 @@ module testIR;
         #10;
         #10;
 
-        $display("j");
+        $display("j, address = %d", IR_addr);
         for (tempvar = 0; tempvar < 32; tempvar = tempvar + 1)
             scmips.registers[tempvar] = tempvar;
-        OpCode = 6'h08;
-        Rs = 3;
-        Rt = 4;
-        IAddr = 10;
-        IR = {OpCode, Rs, Rt, IAddr};
+        OpCode = 6'h02;
+        JAddr = 64;
+        IR = {OpCode, JAddr};
         #10;
+        $display("new address = %d", IR_addr);
         #10;
 
-        $display("jal");
+        $display("jal, address = %d", IR_addr);
         for (tempvar = 0; tempvar < 32; tempvar = tempvar + 1)
             scmips.registers[tempvar] = tempvar;
-        OpCode = 6'h08;
-        Rs = 3;
-        Rt = 4;
-        IAddr = 10;
-        IR = {OpCode, Rs, Rt, IAddr};
+        OpCode = 6'h03;
+        JAddr = 128;
+        IR = {OpCode, JAddr};
         #10;
+        $display("new address = %d", IR_addr);
         #10;
 
         $display("sll");
@@ -223,6 +221,7 @@ module testIR;
         Rd = 7;
         IR = {OpCode, Rs, Rt, Rd, shamt, funct};
         #10;
+        $display("new address = %d", IR_addr);
         #10;
 
         $display("lw, data = %d", RDM);
