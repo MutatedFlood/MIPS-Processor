@@ -22,7 +22,7 @@ source: $(CSHRC)
 	@printf "please run '%s'\n" "$(TIME) source $(CSHRC)"
 
 cpu: $(TB) $(SCMIPS).v
-	$(TIME) $(VLOG) $(TB) $(SCMIPS).v +define+Baseline+access+r $(ARGS)
+	$(TIME) $(VLOG) $(TB) $(SCMIPS).v +define+Baseline +access+r $(ARGS)
 
 compile: run.tcl
 	$(TIME) $(DV) run.tcl $(ARGS)
