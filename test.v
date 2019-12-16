@@ -17,7 +17,6 @@
 `include "HSs18n_128x32.v"
 
 
-
 `define IGLD_INIT "golden/inst_golden.txt"
 
 `ifdef Baseline

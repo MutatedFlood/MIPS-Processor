@@ -1,7 +1,3 @@
-`define DEBUG
-`define IFELSE(IFCLAUSE, IFTRUE, IFFALSE) ((IFCLAUSE) ? (IFTRUE) : (IFFALSE))
-`define MACRO(NAME, CLAUSE) `ifdef NAME CLAUSE `endif
-
 module SingleCycleMIPS( 
     clk,
     rst_n,
@@ -74,7 +70,7 @@ module SingleCycleMIPS(
     integer tempvar;
 
     assign IR_addr = PC;
-    assign A = add_out;
+    assign A = add_out[8:2];
     assign Data2Mem = data_Rt;
     assign CEN = OEN && WEN;
     assign OEN = reg_OEN;
@@ -90,8 +86,17 @@ module SingleCycleMIPS(
         else if (op_code == 6'h05 && unequal_out) net_PC = branch_addr;
         else net_PC = PC_4;
 
-        if (op_code == 6'h03) R31 = PC_4;
-        else R31 = registers[31];
+        if (Rs == prev_Rd) data_Rs = prev_to_Rd;
+        else if (Rs == prev_Rt) data_Rs = prev_to_Rt;
+        else data_Rs = registers[Rs];
+
+        if (Rt == prev_Rd) data_Rt = prev_to_Rd;
+        else if (Rt == prev_Rt) data_Rt = prev_to_Rt;
+        else data_Rt = registers[Rt];
+
+        if (op_code == 6'h08) to_Rt = add_out;
+        else if (op_code == 6'h23) to_Rt = ReadDataMem;
+        else to_Rt = registers[Rt];
 
         to_Rd = registers[Rd];
         if (type_R) begin
@@ -106,17 +111,8 @@ module SingleCycleMIPS(
             endcase
         end
 
-        if (Rs == prev_Rd) data_Rs = prev_to_Rd;
-        else if (Rs == prev_Rt) data_Rs = prev_to_Rt;
-        else data_Rs = registers[Rs];
-
-        if (Rt == prev_Rd) data_Rt = prev_to_Rd;
-        else if (Rt == prev_Rt) data_Rt = prev_to_Rt;
-        else data_Rt = registers[Rt];
-
-        if (op_code == 6'h08) to_Rt = add_out;
-        else if (op_code == 6'h23) to_Rt = ReadDataMem;
-        else to_Rt = registers[Rt];
+        if (op_code == 6'h03) R31 = PC_4;
+        else R31 = registers[31];
 
         if (op_code == 6'h23) reg_OEN = 0;
         else reg_OEN = 1;
