@@ -10,7 +10,8 @@ module SingleCycleMIPS(
     Data2Mem,
     OEN
 );
-    input clk, rst_n;
+    input clk;
+    input rst_n;
     input  [31:0] IR;
     output [31:0] IR_addr;
 
@@ -33,9 +34,6 @@ module SingleCycleMIPS(
     wire [15:0] I_addr = IR[15:0];
     wire [25:0] J_addr = IR[25:0];
 
-    reg [4:0] prev_Rt;
-    reg [4:0] prev_Rd;
-
     reg [31:0] net_PC;
     wire [31:0] PC_4 = PC + 4;
     wire [31:0] ext_I_addr = {{16{I_addr[15]}}, I_addr};
@@ -52,6 +50,8 @@ module SingleCycleMIPS(
     reg [31:0] candidate_add;
     reg [31:0] R31;
     reg [31:0] prev_R31;
+    reg [4:0] prev_Rt;
+    reg [4:0] prev_Rd;
 
     wire [31:0] sll_out = data_Rt << shamt;
     wire [31:0] srl_out = data_Rt >> shamt;
@@ -65,7 +65,7 @@ module SingleCycleMIPS(
     reg reg_WEN;
 
     wire type_R = (op_code == 6'h00);
-    wire unequal_out = (sub_out != 32'd0);
+    wire unequal_out = (sub_out != {32{1'b0}});
 
     integer tempvar;
 
@@ -79,25 +79,35 @@ module SingleCycleMIPS(
     always @* begin
         if (type_R) candidate_add = data_Rt;
         else candidate_add = ext_I_addr;
+    end
 
+    always @* begin
         if (type_R && funct == 6'h08) net_PC = data_Rs;
         else if (op_code == 6'h02 || op_code == 6'h03) net_PC = jump_addr;
         else if (op_code == 6'h04 && !unequal_out) net_PC = branch_addr;
         else if (op_code == 6'h05 && unequal_out) net_PC = branch_addr;
         else net_PC = PC_4;
+    end
 
+    always @* begin
         if (Rs == prev_Rd) data_Rs = prev_to_Rd;
         else if (Rs == prev_Rt) data_Rs = prev_to_Rt;
         else data_Rs = registers[Rs];
+    end
 
+    always @* begin
         if (Rt == prev_Rd) data_Rt = prev_to_Rd;
         else if (Rt == prev_Rt) data_Rt = prev_to_Rt;
         else data_Rt = registers[Rt];
+    end
 
+    always @* begin
         if (op_code == 6'h08) to_Rt = add_out;
         else if (op_code == 6'h23) to_Rt = ReadDataMem;
         else to_Rt = data_Rt;
+    end
 
+    always @* begin
         to_Rd = registers[Rd];
         if (type_R) begin
             case (funct)
@@ -110,16 +120,24 @@ module SingleCycleMIPS(
                 6'h2a: to_Rd = slt_out;
             endcase
         end
+    end
 
+    always @* begin
         if (op_code == 6'h03) R31 = PC_4;
         else R31 = registers[31];
+    end
 
+    always @* begin
         if (op_code == 6'h23) reg_OEN = 0;
         else reg_OEN = 1;
+    end
 
+    always @* begin
         if (op_code == 6'h2b) reg_WEN = 0;
         else reg_WEN = 1;
+    end
 
+    always @* begin
         registers[prev_Rd] = prev_to_Rd;
         registers[prev_Rt] = prev_to_Rt;
         registers[31] = prev_R31;
@@ -137,7 +155,7 @@ module SingleCycleMIPS(
         else begin
             PC <= 0;
             for (tempvar = 0; tempvar < 32; tempvar = tempvar + 1) begin
-                registers[tempvar] <= 32'd0;
+                registers[tempvar] <= {32{1'b0}};
             end
         end
     end
