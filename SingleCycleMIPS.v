@@ -137,10 +137,17 @@ module SingleCycleMIPS(
         else reg_WEN = 1;
     end
 
-    always @* begin
-        registers[prev_Rd] = prev_to_Rd;
-        registers[prev_Rt] = prev_to_Rt;
-        registers[31] = prev_R31;
+    always @(negedge clk) begin
+        if (rst_n) begin
+            registers[prev_Rd] <= prev_to_Rd;
+            registers[prev_Rt] <= prev_to_Rt;
+            registers[31] <= prev_R31;
+        end
+        else begin
+            for (tempvar = 0; tempvar < 32; tempvar = tempvar + 1) begin
+                registers[tempvar] <= {32{1'b0}};
+            end
+        end
     end
 
     always @(posedge clk) begin
@@ -153,10 +160,7 @@ module SingleCycleMIPS(
             prev_R31 <= R31;
         end
         else begin
-            PC <= 0;
-            for (tempvar = 0; tempvar < 32; tempvar = tempvar + 1) begin
-                registers[tempvar] <= {32{1'b0}};
-            end
+            PC <= {32{1'b0}};
         end
     end
 endmodule
