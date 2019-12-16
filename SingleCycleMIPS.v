@@ -40,9 +40,8 @@ module SingleCycleMIPS(
     reg [4:0] prev_Rt;
     reg [4:0] prev_Rd;
 
-    wire [31:0] PC_4 = PC + 4;
-    wire [31:0] PC_8 = PC + 8;
     reg [31:0] net_PC;
+    wire [31:0] PC_4 = PC + 4;
     wire [31:0] ext_I_addr = {{16{I_addr[15]}}, I_addr};
     wire [31:0] shift_ext_I_addr = {ext_I_addr[29:0], 2'd0};
     wire [31:0] jump_addr = {PC_4[31:28], J_addr, 2'd0};
@@ -69,6 +68,9 @@ module SingleCycleMIPS(
     reg reg_OEN;
     reg reg_WEN;
 
+    wire type_R = (op_code == 6'h00);
+    wire unequal_out = (sub_out != 32'd0);
+
     integer tempvar;
 
     assign IR_addr = PC;
@@ -79,20 +81,20 @@ module SingleCycleMIPS(
     assign WEN = reg_WEN;
 
     always @* begin
-        if (op_code == 6'h00) candidate_add = data_Rt;
+        if (type_R) candidate_add = data_Rt;
         else candidate_add = ext_I_addr;
 
-        if (op_code == 6'h00 && funct == 6'h08) net_PC = data_Rs;
+        if (type_R && funct == 6'h08) net_PC = data_Rs;
         else if (op_code == 6'h02 || op_code == 6'h03) net_PC = jump_addr;
-        else if (op_code == 6'h04 && sub_out == 32'd0) net_PC = branch_addr;
-        else if (op_code == 6'h05 && sub_out != 32'd0) net_PC = branch_addr;
+        else if (op_code == 6'h04 && !unequal_out) net_PC = branch_addr;
+        else if (op_code == 6'h05 && unequal_out) net_PC = branch_addr;
         else net_PC = PC_4;
 
-        if (op_code == 6'h03) R31 = PC_8;
+        if (op_code == 6'h03) R31 = PC_4;
         else R31 = registers[31];
 
         to_Rd = registers[Rd];
-        if (op_code == 6'h00) begin
+        if (type_R) begin
             case (funct)
                 6'h00: to_Rd = sll_out;
                 6'h02: to_Rd = srl_out;

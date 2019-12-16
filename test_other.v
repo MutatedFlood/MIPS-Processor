@@ -5,17 +5,14 @@
 
 `timescale 1 ns/10 ps
 
+`define CYCLE 10.0
+`define SDFFILE     "./SingleCycleMIPS_syn.sdf"   // Modify your sdf file name
+`include "HSs18n_128x32.v"
 
 `ifdef IVERILOG
 `define Baseline
 `include "./SingleCycleMIPS.v"
 `endif
-
-
-`define CYCLE 10.0
-`define SDFFILE     "./SingleCycleMIPS_syn.sdf"   // Modify your sdf file name
-`include "HSs18n_128x32.v"
-
 
 
 `define IGLD_INIT "golden/inst_golden.txt"
@@ -109,8 +106,6 @@ module SingleCycle_tb;
 	assign ExtIAddr = {{16{IAddr[15]}}, IAddr};
 
     always @(negedge clk) begin
-		$display("rt = %d->%d, rd = %d->%d", scmips.prev_Rt, scmips.Rt, scmips.prev_Rd, scmips.Rd);
-
         $write("time = %6d, rst_n = %b, PC = %d/%h, Mem = %3b, Read = %8h, Write = %8h || ", $time, rst_n, IR_addr, IR_addr, {CEN, OEN, WEN}, ReadDataMem, Data2Mem);
         case (OpCode)
             6'h08: begin
@@ -155,7 +150,7 @@ module SingleCycle_tb;
                         $display("or, Rs = %d, Rt = %d, Rd = %d, shamt = %d", Rs, Rt, Rd, shamt);
                     end
                     6'h2a: begin
-                        $display("slt, Rs = %d, Rt = %d, Rd = %d, shamt = %d, ans = %d", Rs, Rt, Rd, shamt, scmips.registers[Rs] - scmips.registers[Rt]);
+                        $display("slt, Rs = %d, Rt = %d, Rd = %d, shamt = %d", Rs, Rt, Rd, shamt);
                     end
                     6'h08: begin
                         $display("jr, Rs = %d, Rt = %d, Rd = %d, shamt = %d", Rs, Rt, Rd, shamt);
