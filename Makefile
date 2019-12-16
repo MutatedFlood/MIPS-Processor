@@ -28,16 +28,16 @@ compile: run.tcl
 	$(TIME) $(DV) run.tcl $(ARGS)
 
 csyn: $(TB) $(SCMIPS)_syn.v $(TSMC)
-	$(TIME) $(VLOG) $(TB) $(SCMIPS)_syn.v $(TSMC) +define+Baseline+SDF+access+r $(ARGS)
+	$(TIME) $(VLOG) $(TB) $(SCMIPS)_syn.v $(TSMC) +define+Baseline+SDF +access+r $(ARGS)
 
 fpu: $(TB) $(SCMIPS)_FPU.v
-	$(TIME) $(VLOG) $(TB) $(SCMIPS)_FPU.v $(DESIGNWARE) +define+Baseline+access+r $(ARGS)
+	$(TIME) $(VLOG) $(TB) $(SCMIPS)_FPU.v $(DESIGNWARE) +define+Baseline +access+r $(ARGS)
 
 single: $(TB) $(SCMIPS)_FPU.v
-	$(TIME) $(VLOG) $(TB) $(SCMIPS)_FPU.v $(DESIGNWARE) +define+FPU+Single+access+r $(ARGS)
+	$(TIME) $(VLOG) $(TB) $(SCMIPS)_FPU.v $(DESIGNWARE) +define+FPU+Single +access+r $(ARGS)
 
 double: $(TB) $(SCMIPS)_FPU.v
-	$(TIME) $(VLOG) $(TB) $(SCMIPS)_FPU.v $(DESIGNWARE) +define+FPU+Double+access+r $(ARGS)
+	$(TIME) $(VLOG) $(TB) $(SCMIPS)_FPU.v $(DESIGNWARE) +define+FPU+Double +access+r $(ARGS)
 
 fsyn: $(TB) $(SCMIPS)_FPU_syn.v $(TSMC)
-	$(TIME) $(VLOG) $(TB) $(SCMIPS)_FPU_syn.v $(TSMC) +define+FPU+Single+access+r $(ARGS)
+	$(TIME) $(VLOG) $(TB) $(SCMIPS)_FPU_syn.v $(TSMC) +define+FPU+Single +access+r $(ARGS)
