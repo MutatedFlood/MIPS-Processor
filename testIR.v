@@ -77,7 +77,7 @@ module testIR;
         #10;
         #10;
 
-        $display("beq");
+        $display("beq, address = %d", IR_addr);
         for (tempvar = 0; tempvar < 32; tempvar = tempvar + 1)
             scmips.registers[tempvar] = tempvar;
         OpCode = 6'h04;
@@ -86,9 +86,10 @@ module testIR;
         IAddr = 10;
         IR = {OpCode, Rs, Rt, IAddr};
         #10;
+        $display("new address = %d", IR_addr);
         #10;
 
-        $display("bne");
+        $display("bne, address = %d", IR_addr);
         for (tempvar = 0; tempvar < 32; tempvar = tempvar + 1)
             scmips.registers[tempvar] = tempvar;
         OpCode = 6'h05;
@@ -97,6 +98,7 @@ module testIR;
         IAddr = 10;
         IR = {OpCode, Rs, Rt, IAddr};
         #10;
+        $display("new address = %d", IR_addr);
         #10;
 
         $display("j, address = %d", IR_addr);
