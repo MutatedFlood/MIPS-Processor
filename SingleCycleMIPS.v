@@ -96,7 +96,7 @@ module SingleCycleMIPS(
 
         if (op_code == 6'h08) to_Rt = add_out;
         else if (op_code == 6'h23) to_Rt = ReadDataMem;
-        else to_Rt = registers[Rt];
+        else to_Rt = data_Rt;
 
         to_Rd = registers[Rd];
         if (type_R) begin
