@@ -1,16 +1,4 @@
-`define DEBUG
-// `define MEMORY
-`define FINISH_TIME 100000
-`define IVERILOG
-
 `timescale 1 ns/10 ps
-
-
-`ifdef IVERILOG
-`define Baseline
-`include "./SingleCycleMIPS.v"
-`endif
-
 
 `define CYCLE 10.0
 `define SDFFILE     "./SingleCycleMIPS_syn.sdf"   // Modify your sdf file name
@@ -59,7 +47,7 @@ module SingleCycle_tb;
 		.data(IR)
 	);
 
-	SingleCycleMIPS scmips(
+	SingleCycleMIPS SingleCycleMIPS(
 		clk,
 		rst_n,
 		IR_addr,
@@ -86,7 +74,6 @@ module SingleCycle_tb;
 	initial $sdf_annotate(`SDFFILE, SingleCycleMIPS);
 `endif
 
-`ifdef DEBUG
     wire [5:0] OpCode; // all
     wire [4:0] Rs; // R, I
     wire [4:0] Rt; // R, I
@@ -108,8 +95,6 @@ module SingleCycle_tb;
 	assign ExtIAddr = {{16{IAddr[15]}}, IAddr};
 
     always @(negedge clk) begin
-		$display("rt = %d->%d, rd = %d->%d", scmips.prev_Rt, scmips.Rt, scmips.prev_Rd, scmips.Rd);
-
         $write("time = %6d, rst_n = %b, PC = %d/%h, Mem = %3b, Read = %8h, Write = %8h || ", $time, rst_n, IR_addr, IR_addr, {CEN, OEN, WEN}, ReadDataMem, Data2Mem);
         case (OpCode)
             6'h08: begin
@@ -154,7 +139,7 @@ module SingleCycle_tb;
                         $display("or, Rs = %d, Rt = %d, Rd = %d, shamt = %d", Rs, Rt, Rd, shamt);
                     end
                     6'h2a: begin
-                        $display("slt, Rs = %d, Rt = %d, Rd = %d, shamt = %d, ans = %d", Rs, Rt, Rd, shamt, scmips.registers[Rs] - scmips.registers[Rt]);
+                        $display("slt, Rs = %d, Rt = %d, Rd = %d, shamt = %d", Rs, Rt, Rd, shamt);
                     end
                     6'h08: begin
                         $display("jr, Rs = %d, Rt = %d, Rd = %d, shamt = %d", Rs, Rt, Rd, shamt);
@@ -171,24 +156,6 @@ module SingleCycle_tb;
             end
         endcase
     end
-
-`ifdef MEMORY
-    integer temp;
-    always @(posedge clk) begin
-        for (temp = 0; temp < 32; temp = temp + 1) begin
-            if (temp % 8 == 0) begin
-                $display;
-            end
-            $write("0x%h ", scmips.registers[temp]);
-        end
-        $display; $display;
-    end
-`endif
-
-    always @(posedge clk) begin
-        if ($time > `FINISH_TIME) $finish;
-    end
-`endif
 
 // Initialize the data memory
 	initial begin

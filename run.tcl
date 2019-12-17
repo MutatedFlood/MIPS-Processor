@@ -39,3 +39,5 @@ write -hierarchy -format verilog -output ./SingleCycleMIPS_syn.v
 write -hierarchy -format ddc -output ./SingleCycleMIPS_syn.ddc                       
 report_area -nosplit -hierarchy > ./area.txt
 report_timing > ./timing.txt
+
+exit
