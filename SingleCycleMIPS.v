@@ -65,7 +65,7 @@ module SingleCycleMIPS(
     reg reg_WEN;
 
     wire type_R = (op_code == 6'h00);
-    wire unequal_out = (sub_out != {32{1'b0}});
+    wire unequal_out = (data_Rs != data_Rt);
 
     integer tempvar;
 
