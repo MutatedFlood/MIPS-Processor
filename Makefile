@@ -15,7 +15,7 @@ DESIGNWARE = -y /usr/cad/synopsys/synthesis/cur/dw/sim_ver/ \
 
 
 .PHONY: all
-all: source
+all: syn/build
 
 .PHONY: source
 source: $(CSHRC)

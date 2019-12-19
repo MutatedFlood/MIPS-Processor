@@ -107,10 +107,14 @@ module SingleCycleMIPS(
     end
 
     always @* begin
-        equal_out = 0;
-        unequal_out = 0;
-        if (sub_out == 0) equal_out = 1;
-        else unequal_out = 1;
+        if (sub_out) begin
+            equal_out = 0;
+            unequal_out = 1;
+        end
+        else begin
+            equal_out = 1;
+            unequal_out = 0;
+        end
     end
 
     always @* begin
