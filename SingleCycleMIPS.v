@@ -161,6 +161,11 @@ module SingleCycleMIPS(
         end
         else begin
             PC <= {32{1'b0}};
+            prev_Rt <= 0;
+            prev_Rd <= 0;
+            prev_to_Rt <= 0;
+            prev_to_Rd <= 0;
+            prev_R31 <= 0;
         end
     end
 endmodule
