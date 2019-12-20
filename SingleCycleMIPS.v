@@ -185,7 +185,7 @@ module SingleCycleMIPS(
         end
         else begin
             for (tempvar = 0; tempvar < 32; tempvar = tempvar + 1) begin
-                registers[tempvar] <= {32{1'b0}};
+                registers[tempvar] <= 32'd0;
             end
         end
     end
