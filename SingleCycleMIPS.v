@@ -169,21 +169,22 @@ module SingleCycleMIPS(
 
     always @* begin
         for (tempvar = 0; tempvar < 31; tempvar = tempvar + 1) begin
-            if (tempvar == Rt) registers[tempvar] = to_Rt;
-            else if (tempvar == Rd) registers[tempvar] = to_Rd;
-            else registers[tempvar] = registers_FF[tempvar];
+            registers[tempvar] = registers_FF[tempvar];
         end
+        registers[Rt] = to_Rt;
+        registers[Rd] = to_Rd;
         registers[31] = R31;
     end
 
     always @(posedge clk) begin
+        registers_FF[0] <= 32'd0;
         if (rst_n) begin
-            for (tempvar = 0; tempvar < 32; tempvar = tempvar + 1) begin
+            for (tempvar = 1; tempvar < 32; tempvar = tempvar + 1) begin
                 registers_FF[tempvar] <= registers[tempvar];
             end
         end
         else begin
-            for (tempvar = 0; tempvar < 32; tempvar = tempvar + 1) begin
+            for (tempvar = 1; tempvar < 32; tempvar = tempvar + 1) begin
                 registers_FF[tempvar] <= 32'd0;
             end
         end
