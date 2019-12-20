@@ -22,8 +22,9 @@ module SingleCycleMIPS(
     output [31:0] Data2Mem;  
     output OEN;
 
-    reg [8:0] PC;
+    reg [31:2] PC;
     reg [31:0] registers [0:31];
+    reg [31:0] registers_FF [0:31];
 
     wire [5:0] op_code = IR[31:26];
     wire [4:0] Rs = IR[25:21];
@@ -34,23 +35,18 @@ module SingleCycleMIPS(
     wire [15:0] I_addr = IR[15:0];
     wire [25:0] J_addr = IR[25:0];
 
-    reg [8:2] net_PC;
-    wire [8:2] PC_4 = PC + 1;
+    reg [31:2] net_PC;
+    wire [31:2] PC_4 = PC + 1;
     wire [31:0] ext_I_addr = {{16{I_addr[15]}}, I_addr};
-    wire [8:2] jump_addr = J_addr[6:0];
-    wire [8:2] branch_addr = PC_4 + shift_ext_I_addr[6:0];
+    wire [31:2] jump_addr = {PC_4[31:28], J_addr};
+    wire [31:2] branch_addr = PC_4 + ext_I_addr[29:0];
 
     reg [31:0] data_Rs;
     reg [31:0] data_Rt;
-    reg [31:0] to_Rd;
-    reg [31:0] to_Rt;
-    reg [31:0] prev_to_Rd;
-    reg [31:0] prev_to_Rt;
     reg [31:0] candidate_add;
     reg [31:0] R31;
-    reg [31:0] prev_R31;
-    reg [4:0] prev_Rt;
-    reg [4:0] prev_Rd;
+    reg [31:0] to_Rt;
+    reg [31:0] to_Rd;
 
     wire [31:0] sll_out = data_Rt << shamt;
     wire [31:0] srl_out = data_Rt >> shamt;
@@ -58,22 +54,64 @@ module SingleCycleMIPS(
     wire [31:0] sub_out = data_Rs - data_Rt;
     wire [31:0] and_out = data_Rs & data_Rt;
     wire [31:0] or_out = data_Rs | data_Rt;
-    wire [31:0] slt_out = {31'b0, sub_out[31]};
+    wire [31:0] slt_out = {31'd0, sub_out[31]};
 
     reg reg_OEN;
     reg reg_WEN;
 
-    wire type_R = (op_code == 6'h00);
-    wire unequal_out = (data_Rs != data_Rt);
+    reg type_R;
+    reg equal_out;
+    reg unequal_out;
 
     integer tempvar;
 
-    assign IR_addr = {PC, 2'b0};
+    assign IR_addr = {PC, 2'd0};
     assign A = add_out[8:2];
     assign Data2Mem = data_Rt;
     assign CEN = OEN && WEN;
     assign OEN = reg_OEN;
     assign WEN = reg_WEN;
+
+    wire flag_jr = (funct == 6'h08);
+    reg flag_j;
+    reg flag_jal;
+    reg flag_beq;
+    reg flag_bne;
+    reg flag_addi;
+    reg flag_lw;
+    reg flag_sw;
+
+    always @* begin
+        type_R = 0;
+        flag_j = 0;
+        flag_jal = 0;
+        flag_beq = 0;
+        flag_bne = 0;
+        flag_addi = 0;
+        flag_lw = 0;
+        flag_sw = 0;
+        case (op_code)
+            6'h00: type_R = 1;
+            6'h02: flag_j = 1;
+            6'h03: flag_jal = 1;
+            6'h04: flag_beq = 1;
+            6'h05: flag_bne = 1;
+            6'h08: flag_addi = 1;
+            6'h23: flag_lw = 1;
+            6'h2b: flag_sw = 1;
+        endcase
+    end
+
+    always @* begin
+        if (sub_out) begin
+            equal_out = 0;
+            unequal_out = 1;
+        end
+        else begin
+            equal_out = 1;
+            unequal_out = 0;
+        end
+    end
 
     always @* begin
         if (type_R) candidate_add = data_Rt;
@@ -81,33 +119,26 @@ module SingleCycleMIPS(
     end
 
     always @* begin
-        if (type_R && funct == 6'h08) net_PC = data_Rs;
-        else if (op_code == 6'h02 || op_code == 6'h03) net_PC = jump_addr;
-        else if (op_code == 6'h04 && !unequal_out) net_PC = branch_addr;
-        else if (op_code == 6'h05 && unequal_out) net_PC = branch_addr;
+        if (type_R && flag_jr) net_PC = data_Rs;
+        else if (flag_j || flag_jal) net_PC = jump_addr;
+        else if (flag_beq && equal_out) net_PC = branch_addr;
+        else if (flag_bne && unequal_out) net_PC = branch_addr;
         else net_PC = PC_4;
     end
-
+    
     always @* begin
-        if (Rs == prev_Rd) data_Rs = prev_to_Rd;
-        else if (Rs == prev_Rt) data_Rs = prev_to_Rt;
-        else data_Rs = registers[Rs];
+        data_Rs = registers_FF[Rs];
+        data_Rt = registers_FF[Rt];
     end
 
     always @* begin
-        if (Rt == prev_Rd) data_Rt = prev_to_Rd;
-        else if (Rt == prev_Rt) data_Rt = prev_to_Rt;
-        else data_Rt = registers[Rt];
-    end
-
-    always @* begin
-        if (op_code == 6'h08) to_Rt = add_out;
-        else if (op_code == 6'h23) to_Rt = ReadDataMem;
+        if (flag_addi) to_Rt = add_out;
+        else if (flag_lw) to_Rt = ReadDataMem;
         else to_Rt = data_Rt;
     end
 
     always @* begin
-        to_Rd = registers[Rd];
+        to_Rd = registers_FF[Rd];
         if (type_R) begin
             case (funct)
                 6'h00: to_Rd = sll_out;
@@ -122,48 +153,44 @@ module SingleCycleMIPS(
     end
 
     always @* begin
-        if (op_code == 6'h03) R31 = PC_4;
-        else R31 = registers[31];
+        if (flag_jal) R31 = PC_4;
+        else R31 = registers_FF[31];
     end
 
     always @* begin
-        if (op_code == 6'h23) reg_OEN = 0;
+        if (flag_lw) reg_OEN = 0;
         else reg_OEN = 1;
     end
 
     always @* begin
-        if (op_code == 6'h2b) reg_WEN = 0;
+        if (flag_sw) reg_WEN = 0;
         else reg_WEN = 1;
     end
 
-    always @(negedge clk) begin
+    always @* begin
+        for (tempvar = 0; tempvar < 31; tempvar = tempvar + 1) begin
+            if (tempvar == Rt) registers[tempvar] = to_Rt;
+            else if (tempvar == Rd) registers[tempvar] = to_Rd;
+            else registers[tempvar] = registers_FF[tempvar];
+        end
+        registers[31] = R31;
+    end
+
+    always @(posedge clk) begin
         if (rst_n) begin
-            registers[prev_Rd] <= prev_to_Rd;
-            registers[prev_Rt] <= prev_to_Rt;
-            registers[31] <= prev_R31;
+            for (tempvar = 0; tempvar < 32; tempvar = tempvar + 1) begin
+                registers_FF[tempvar] <= registers[tempvar];
+            end
         end
         else begin
             for (tempvar = 0; tempvar < 32; tempvar = tempvar + 1) begin
-                registers[tempvar] <= 32'b0;
+                registers_FF[tempvar] <= 32'd0;
             end
         end
     end
 
     always @(posedge clk) begin
-        if (rst_n) begin
-            PC <= net_PC;
-            prev_Rt <= Rt;
-            prev_Rd <= Rd;
-            prev_to_Rd <= to_Rd;
-            prev_to_Rt <= to_Rt;
-            prev_R31 <= R31;
-        end
-        else begin
-            PC <= 32'b0;
-            prev_Rt <= 0;
-            prev_Rd <= 0;
-            prev_to_Rt <= 0;
-            prev_to_Rd <= 0;
-        end
+        if (rst_n) PC <= net_PC;
+        else PC <= 32'd0;
     end
 endmodule
