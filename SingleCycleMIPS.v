@@ -22,7 +22,7 @@ module SingleCycleMIPS(
     output [31:0] Data2Mem;  
     output OEN;
 
-    reg [31:0] PC;
+    reg [8:0] PC;
     reg [31:0] registers [0:31];
 
     wire [5:0] op_code = IR[31:26];
@@ -34,12 +34,11 @@ module SingleCycleMIPS(
     wire [15:0] I_addr = IR[15:0];
     wire [25:0] J_addr = IR[25:0];
 
-    reg [31:0] net_PC;
-    wire [31:0] PC_4 = PC + 4;
+    reg [8:2] net_PC;
+    wire [8:2] PC_4 = PC + 1;
     wire [31:0] ext_I_addr = {{16{I_addr[15]}}, I_addr};
-    wire [31:0] shift_ext_I_addr = {ext_I_addr[29:0], 2'd0};
-    wire [31:0] jump_addr = {PC_4[31:28], J_addr, 2'd0};
-    wire [31:0] branch_addr = PC_4 + shift_ext_I_addr;
+    wire [8:2] jump_addr = J_addr[6:0];
+    wire [8:2] branch_addr = PC_4 + shift_ext_I_addr[6:0];
 
     reg [31:0] data_Rs;
     reg [31:0] data_Rt;
@@ -59,7 +58,7 @@ module SingleCycleMIPS(
     wire [31:0] sub_out = data_Rs - data_Rt;
     wire [31:0] and_out = data_Rs & data_Rt;
     wire [31:0] or_out = data_Rs | data_Rt;
-    wire [31:0] slt_out = {{31{1'b0}}, sub_out[31]};
+    wire [31:0] slt_out = {31'b0, sub_out[31]};
 
     reg reg_OEN;
     reg reg_WEN;
@@ -69,7 +68,7 @@ module SingleCycleMIPS(
 
     integer tempvar;
 
-    assign IR_addr = PC;
+    assign IR_addr = {PC, 2'b0};
     assign A = add_out[8:2];
     assign Data2Mem = data_Rt;
     assign CEN = OEN && WEN;
@@ -145,7 +144,7 @@ module SingleCycleMIPS(
         end
         else begin
             for (tempvar = 0; tempvar < 32; tempvar = tempvar + 1) begin
-                registers[tempvar] <= {32{1'b0}};
+                registers[tempvar] <= 32'b0;
             end
         end
     end
@@ -160,7 +159,11 @@ module SingleCycleMIPS(
             prev_R31 <= R31;
         end
         else begin
-            PC <= {32{1'b0}};
+            PC <= 32'b0;
+            prev_Rt <= 0;
+            prev_Rd <= 0;
+            prev_to_Rt <= 0;
+            prev_to_Rd <= 0;
         end
     end
 endmodule
