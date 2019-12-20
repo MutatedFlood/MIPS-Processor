@@ -22,7 +22,7 @@ module SingleCycleMIPS(
     output [31:0] Data2Mem;  
     output OEN;
 
-    reg [31:0] PC;
+    reg [31:2] PC;
     reg [31:0] registers [0:31];
 
     wire [5:0] op_code = IR[31:26];
