@@ -177,7 +177,7 @@ module SingleCycleMIPS(
         flag_sw = 0;
         case (op_code)
             6'h00: type_R = 1;
-            6'h00: type_FR = 1;
+            // 6'h00: type_FR = 1;
             6'h02: flag_j = 1;
             6'h03: flag_jal = 1;
             6'h04: flag_beq = 1;
@@ -232,7 +232,7 @@ module SingleCycleMIPS(
 
     always @* begin
         if (type_R) candidate_add = data_Rt;
-        if (double_stall_prev) candidate_add = ext_I_addr + 4;
+        else if (double_stall_prev) candidate_add = ext_I_addr + 4;
         else candidate_add = ext_I_addr;
     end
 
