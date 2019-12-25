@@ -274,11 +274,13 @@ module SingleCycleMIPS(
 
     always @* begin
         if (flag_lw) reg_OEN = 0;
+        else if (flag_lwc1) reg_OEN = 0;
         else reg_OEN = 1;
     end
 
     always @* begin
         if (flag_sw) reg_WEN = 0;
+        else if (flag_swc1) reg_WEN = 0;
         else reg_WEN = 1;
     end
 
