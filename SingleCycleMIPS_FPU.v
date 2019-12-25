@@ -26,9 +26,12 @@ module SingleCycleMIPS(
     reg [31:0] registers [0:31];
     reg [31:0] registers_FF [0:31];
 
+    reg double_stall;
+    reg double_stall_prev;
+
     wire [5:0] op_code = IR[31:26];
     wire [4:0] Rs = IR[25:21];
-    wire [4:0] Rt = IR[20:16];
+    wire [4:0] Rt = (double_stall_prev)?IR[20:16]+1:IR[20:16];
     wire [4:0] Rd = IR[15:11];
     wire [4:0] shamt = IR[10:6];
     wire [5:0] funct = IR[5:0];
@@ -61,9 +64,12 @@ module SingleCycleMIPS(
     reg [31:0] FP_registers_FF [0:31];
     reg [31:0] data_Fs;
     reg [31:0] data_Ft;
+    reg [63:0] FP64_data_Fs;
+    reg [63:0] FP64_data_Ft;
     reg [31:0] FP_data_Rt;
     reg [31:0] FP_to_Rt;
     reg [31:0] to_Fd;
+    reg [31:0] to_Fd_1;
     wire [4:0] fmt = IR[25:21];
     wire [4:0] Ft = IR[20:16];
     wire [4:0] Fs = IR[15:11];
@@ -104,7 +110,21 @@ module SingleCycleMIPS(
     DW_fp_cmp #(.sig_width(23),.exp_width(8),.ieee_compliance(0)) 
     FP32_cmper (.a(data_Fs), .b(data_Ft), .zctr(fp32_zctr), .aeqb(fp32_aeqb), .altb(fp32_altb), .agtb(fp32_agtb), .unordered(fp32_unordered), .z0(fp32_z0), .z1(fp32_z1), .status0(fp32_cmp_status0), .status1(fp32_cmp_status1));
     // module DW_fp_cmp (a, b, zctr, aeqb, altb, agtb, unordered, z0, z1, status0, status1);
+
+
+    // FPU Double part
+    // FPU Double Adder
+    wire [63:0] fp64_add_out;
+    wire [7:0] fp64_add_status;
+    DW_fp_add #(.sig_width(52),.exp_width(11),.ieee_compliance(0)) 
+    FP64_adder (.a(FP64_data_Fs), .b(FP64_data_Ft), .rnd(rounding_mode), .z(fp64_add_out), .status(fp64_add_status));
+    // FPU Double Suber
+    wire [63:0] fp64_sub_out;
+    wire [7:0] fp64_sub_status;
+    DW_fp_sub #(.sig_width(52),.exp_width(11),.ieee_compliance(0)) 
+    FP64_suber (.a(FP64_data_Fs), .b(FP64_data_Ft), .rnd(rounding_mode), .z(fp64_sub_out), .status(fp64_sub_status));
     
+
     reg type_FR;
     reg FPcond;
     reg net_FPcond;
@@ -133,8 +153,10 @@ module SingleCycleMIPS(
     reg flag_bne;
     reg flag_addi;
     reg flag_lwc1;
+    reg flag_ldc1;
     reg flag_lw;
     reg flag_swc1;
+    reg flag_sdc1;
     reg flag_sw;
     reg flag_bc1t;
     reg flag_bc1f;
@@ -148,8 +170,10 @@ module SingleCycleMIPS(
         flag_bne = 0;
         flag_addi = 0;
         flag_lwc1 = 0;
+        flag_ldc1 = 0;
         flag_lw = 0;
         flag_swc1 = 0;
+        flag_sdc1 = 0;
         flag_sw = 0;
         case (op_code)
             6'h00: type_R = 1;
@@ -163,7 +187,9 @@ module SingleCycleMIPS(
             6'h23: flag_lw = 1;
             6'h2b: flag_sw = 1;
             6'h31: flag_lwc1 = 1;
+            6'h35: flag_ldc1 = 1;
             6'h39: flag_swc1 = 1;
+            6'h3d: flag_sdc1 = 1;
         endcase
     end
 
@@ -199,9 +225,18 @@ module SingleCycleMIPS(
     end
 
     always @* begin
+        if (double_stall_prev) double_stall = 0;
+        else if (flag_sdc1 || flag_ldc1) double_stall = 1;
+        else double_stall = 0;
+    end
+
+    always @* begin
         if (type_R) candidate_add = data_Rt;
+        if (double_stall_prev) candidate_add = ext_I_addr + 4;
         else candidate_add = ext_I_addr;
     end
+
+    reg fpu_control;
 
     always @* begin
         if (type_R && flag_jr) net_PC = data_Rs;
@@ -210,6 +245,8 @@ module SingleCycleMIPS(
         else if (flag_bne && unequal_out) net_PC = branch_addr;
         else if (flag_bc1t && FPcond) net_PC = branch_addr;
         else if (flag_bc1f && !FPcond) net_PC = branch_addr;
+        else if (flag_ldc1 && !double_stall_prev) net_PC = PC;
+        else if (flag_sdc1 && !double_stall_prev) net_PC = PC;
         else net_PC = PC_4;
     end
     
@@ -222,6 +259,8 @@ module SingleCycleMIPS(
         data_Fs = FP_registers_FF[Fs];
         FP_data_Rt = FP_registers_FF[Rt];
         data_Ft = FP_registers_FF[Ft];
+        FP64_data_Fs = {FP_registers_FF[Fs], FP_registers_FF[Fs+1]};
+        FP64_data_Ft = {FP_registers_FF[Ft], FP_registers_FF[Ft+1]};
     end
 
     always @* begin
@@ -231,12 +270,12 @@ module SingleCycleMIPS(
     end
 
     always @* begin
-        if (flag_lwc1) FP_to_Rt = ReadDataMem;
+        if (flag_lwc1 || flag_ldc1) FP_to_Rt = ReadDataMem;
         else FP_to_Rt = FP_data_Rt;
     end
 
     always @* begin
-        if (flag_swc1) Data2Mem_reg = FP_data_Rt;
+        if (flag_swc1 || flag_sdc1) Data2Mem_reg = FP_data_Rt;
         else Data2Mem_reg = data_Rt;
     end
 
@@ -257,13 +296,28 @@ module SingleCycleMIPS(
 
     always @* begin
         to_Fd = FP_registers_FF[Fd];
+        to_Fd_1 = FP_registers_FF[Fd+1];
         if (type_FR) begin
-            case (funct)
-                6'h00: to_Fd = fp32_add_out;
-                6'h01: to_Fd = fp32_sub_out;
-                6'h02: to_Fd = fp32_mult_out;
-                6'h03: to_Fd = fp32_div_out;
-            endcase
+            if (fmt == 6'h10) begin
+                case (funct)
+                    6'h00: to_Fd = fp32_add_out;
+                    6'h01: to_Fd = fp32_sub_out;
+                    6'h02: to_Fd = fp32_mult_out;
+                    6'h03: to_Fd = fp32_div_out;
+                endcase
+            end
+            if (fmt == 6'h11) begin
+                case (funct)
+                    6'h00: begin 
+                        to_Fd = fp64_add_out[63:32]; 
+                        to_Fd_1 = fp64_add_out[31:0]; 
+                    end
+                    6'h01: begin 
+                        to_Fd = fp64_sub_out[63:32]; 
+                        to_Fd_1 = fp64_sub_out[31:0]; 
+                    end
+                endcase
+            end
         end
     end
 
@@ -273,14 +327,12 @@ module SingleCycleMIPS(
     end
 
     always @* begin
-        if (flag_lw) reg_OEN = 0;
-        else if (flag_lwc1) reg_OEN = 0;
+        if (flag_lw || flag_lwc1 || flag_ldc1) reg_OEN = 0;
         else reg_OEN = 1;
     end
 
     always @* begin
-        if (flag_sw) reg_WEN = 0;
-        else if (flag_swc1) reg_WEN = 0;
+        if (flag_sw || flag_swc1 || flag_sdc1) reg_WEN = 0;
         else reg_WEN = 1;
     end
 
@@ -299,11 +351,13 @@ module SingleCycleMIPS(
         end
         FP_registers[Rt] = FP_to_Rt;
         FP_registers[Fd] = to_Fd;
+        FP_registers[Fd+1] = to_Fd_1;
     end
 
     always @(posedge clk) begin
         rounding_mode <= 3'b0;
         fp32_zctr <= 0;
+        double_stall_prev <= double_stall;
     end
 
     always @(posedge clk) begin
