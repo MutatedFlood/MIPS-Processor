@@ -355,9 +355,16 @@ module SingleCycleMIPS(
     end
 
     always @(posedge clk) begin
-        rounding_mode <= 3'b0;
-        fp32_zctr <= 0;
-        double_stall_prev <= double_stall;
+        if (rst_n) begin
+            rounding_mode <= 3'b0;
+            fp32_zctr <= 0;
+            double_stall_prev <= double_stall;
+        end
+        else begin
+            rounding_mode <= 3'b0;
+            fp32_zctr <= 0;
+            double_stall_prev <= 0;
+        end
     end
 
     always @(posedge clk) begin

@@ -42,4 +42,10 @@ rtl/double: $(TB) $(SCMIPS)_FPU.v
 	$(VLOG) $(TB) $(SCMIPS)_FPU.v $(DESIGNWARE) +define+FPU+Double +access+r $(ARGS)
 
 syn/fpu: $(TB) $(SCMIPS)_FPU_syn.v $(TSMC)
-	$(VLOG) $(TB) $(SCMIPS)_FPU_syn.v $(TSMC) +define+FPU+Single +access+r $(ARGS)
+	$(VLOG) $(TB) $(SCMIPS)_FPU_syn.v $(TSMC) +define+Baseline+SDF +access+r $(ARGS)
+
+syn/single: $(TB) $(SCMIPS)_FPU_syn.v $(TSMC)
+	$(VLOG) $(TB) $(SCMIPS)_FPU_syn.v $(TSMC) +define+FPU+Single+SDF +access+r $(ARGS)
+
+syn/double: $(TB) $(SCMIPS)_FPU_syn.v $(TSMC)
+	$(VLOG) $(TB) $(SCMIPS)_FPU_syn.v $(TSMC) +define+FPU+Double+SDF +access+r $(ARGS)
