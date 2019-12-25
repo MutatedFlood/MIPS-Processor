@@ -80,22 +80,26 @@ module SingleCycleMIPS(
     wire [31:0] fp32_add_out;
     wire [7:0] fp32_add_status;
     DW_fp_add #(.sig_width(23),.exp_width(8),.ieee_compliance(0)) 
-    FP32_adder (.a(data_Fs), .b(data_Ft), .rnd(rounding_mode), .z(fp32_add_out), .status(fp32_add_status));
+    FP32_adder (.a(data_Fs), .b(data_Ft), .rnd(rounding_mode),
+                .z(fp32_add_out), .status(fp32_add_status));
     // FPU Suber
     wire [31:0] fp32_sub_out;
     wire [7:0] fp32_sub_status;
     DW_fp_sub #(.sig_width(23),.exp_width(8),.ieee_compliance(0)) 
-    FP32_suber (.a(data_Fs), .b(data_Ft), .rnd(rounding_mode), .z(fp32_sub_out), .status(fp32_sub_status));
+    FP32_suber (.a(data_Fs), .b(data_Ft), .rnd(rounding_mode),
+                .z(fp32_sub_out), .status(fp32_sub_status));
     // FPU Multiplier
     wire [31:0] fp32_mult_out;
     wire [7:0] fp32_mult_status;
     DW_fp_mult #(.sig_width(23),.exp_width(8),.ieee_compliance(0)) 
-    FP32_multer (.a(data_Fs), .b(data_Ft), .rnd(rounding_mode), .z(fp32_mult_out), .status(fp32_mult_status));
+    FP32_multer (.a(data_Fs), .b(data_Ft), .rnd(rounding_mode),
+                 .z(fp32_mult_out), .status(fp32_mult_status));
     // FPU Divider
     wire [31:0] fp32_div_out;
     wire [7:0] fp32_div_status;
     DW_fp_div #(.sig_width(23),.exp_width(8),.ieee_compliance(0)) 
-    FP32_diver (.a(data_Fs), .b(data_Ft), .rnd(rounding_mode), .z(fp32_div_out), .status(fp32_div_status));
+    FP32_diver (.a(data_Fs), .b(data_Ft), .rnd(rounding_mode),
+                .z(fp32_div_out), .status(fp32_div_status));
     // FPU Comparator
     wire [31:0] fp32_cmp_out;
     wire [31:0] fp32_z0;
@@ -108,7 +112,9 @@ module SingleCycleMIPS(
     wire fp32_agtb;
     wire fp32_unordered;
     DW_fp_cmp #(.sig_width(23),.exp_width(8),.ieee_compliance(0)) 
-    FP32_cmper (.a(data_Fs), .b(data_Ft), .zctr(fp32_zctr), .aeqb(fp32_aeqb), .altb(fp32_altb), .agtb(fp32_agtb), .unordered(fp32_unordered), .z0(fp32_z0), .z1(fp32_z1), .status0(fp32_cmp_status0), .status1(fp32_cmp_status1));
+    FP32_cmper (.a(data_Fs), .b(data_Ft), .zctr(fp32_zctr), .aeqb(fp32_aeqb),
+                .altb(fp32_altb), .agtb(fp32_agtb), .unordered(fp32_unordered),
+                .z0(fp32_z0), .z1(fp32_z1), .status0(fp32_cmp_status0), .status1(fp32_cmp_status1));
     // module DW_fp_cmp (a, b, zctr, aeqb, altb, agtb, unordered, z0, z1, status0, status1);
 
 
@@ -117,14 +123,15 @@ module SingleCycleMIPS(
     wire [63:0] fp64_add_out;
     wire [7:0] fp64_add_status;
     DW_fp_add #(.sig_width(52),.exp_width(11),.ieee_compliance(0)) 
-    FP64_adder (.a(FP64_data_Fs), .b(FP64_data_Ft), .rnd(rounding_mode), .z(fp64_add_out), .status(fp64_add_status));
+    FP64_adder (.a(FP64_data_Fs), .b(FP64_data_Ft), .rnd(rounding_mode),
+                .z(fp64_add_out), .status(fp64_add_status));
     // FPU Double Suber
     wire [63:0] fp64_sub_out;
     wire [7:0] fp64_sub_status;
     DW_fp_sub #(.sig_width(52),.exp_width(11),.ieee_compliance(0)) 
-    FP64_suber (.a(FP64_data_Fs), .b(FP64_data_Ft), .rnd(rounding_mode), .z(fp64_sub_out), .status(fp64_sub_status));
+    FP64_suber (.a(FP64_data_Fs), .b(FP64_data_Ft), .rnd(rounding_mode),
+                .z(fp64_sub_out), .status(fp64_sub_status));
     
-
     reg type_FR;
     reg FPcond;
     reg net_FPcond;
@@ -177,7 +184,6 @@ module SingleCycleMIPS(
         flag_sw = 0;
         case (op_code)
             6'h00: type_R = 1;
-            // 6'h00: type_FR = 1;
             6'h02: flag_j = 1;
             6'h03: flag_jal = 1;
             6'h04: flag_beq = 1;
