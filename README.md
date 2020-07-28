@@ -4,7 +4,9 @@ A rather nice (~I suppose~ _proven_) single-cycle MIPS processor implementation 
 
 ![MIPS](https://i.imgur.com/0rWtHU7.png)
 
-Authors: [Ren-Chu Wang](https://github.com/w4n9r3ntru3), [Yung-Sung Chuang](https://github.com/voidism)
+Authors: [Ren-Chu Wang](https://github.com/w4n9r3ntru3), [Yung-Sung Chuang](https://github.com/voidism)  
+Course: EE 4039 Computer Architecture 2019 Fall, Prof. ‪Yi-Chang Lu, National Taiwan University  
+Result: Ranking **2nd place** out of **44 groups** by A\*T value (708146.4, Area: 87750, Time: 8.07 ms)  
 
 ## Specifications
 
